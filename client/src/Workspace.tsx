@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { InboxQuestions, ReplyDraft } from './MailboxAssist';
+import { requestMailbox } from './mailbox-request';
 
 type Provider = 'gmail' | 'outlook';
 type Owner = 'ASSISTANT' | 'CLIENT' | 'NONE';
@@ -8,6 +10,7 @@ type Thread = {
   sender: string;
   subject: string;
   owner: Owner;
+  draft?: string;
   override?: Owner | null;
   classification?: { owner: Owner; reason: string; summary: string; review: boolean; source: 'ai' | 'rules' };
   messages: { body: string; receivedAt: string; demoFollowUp?: boolean }[];
@@ -35,13 +38,7 @@ function belongs(thread: Thread, segment: Segment) {
 }
 
 async function mailboxRequest(path = '', method = 'GET', body?: object, signal?: AbortSignal) {
-  const response = await fetch('/api/mailbox' + path, {
-    method, signal,
-    ...(body && { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
-  });
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.error || 'Mailbox request failed.');
-  return result.mailbox as Mailbox | null;
+  return (await requestMailbox<{ mailbox: Mailbox | null }>(path, method, body, signal)).mailbox;
 }
 
 export function Workspace({ name, signOut, signingOut, signOutError }: {
@@ -183,6 +180,7 @@ export function Workspace({ name, signOut, signingOut, signOutError }: {
               </button>
             ))}
           </div>
+          <InboxQuestions threads={threads} openThread={id => { setSegment('inbox'); setQuery(''); setSelected(id); }} />
           <div className={'inbox-body' + (thread ? ' has-selection' : '')}>
             <section className="thread-list" aria-label="Inbox conversations">
               <label>Search conversations<input type="search" placeholder="Sender, subject or message" value={query} onChange={event => setQuery(event.target.value)} /></label>
@@ -238,6 +236,10 @@ export function Workspace({ name, signOut, signingOut, signOutError }: {
                     <p>{message.body}</p>
                   </article>
                 ))}
+                <ReplyDraft key={thread.id} id={thread.id} sender={thread.sender} savedDraft={thread.draft} onSaved={draft => setMailbox(current => current && {
+                  ...current,
+                  threads: current.threads.map(item => item.id === thread.id ? { ...item, draft } : item),
+                })} />
               </> : <p className="empty">Select a conversation to read the thread.</p>}
             </section>
           </div>

@@ -20,4 +20,9 @@ Create an account and choose Gmail or Outlook. Both options load a sample inbox 
 2. Click **Client preview**, open a conversation, and choose **Ask assistant to take over** or **Mark handled**. In the assistant workspace, find it in **Assistant to Reply** or **Completed** respectively. Client preview is a role simulation within the signed-in demo workspace.
 3. Back in the assistant inbox, click **Simulate proposal follow-up** to add a sample resolution to the proposal thread. Automatic classification runs again. Clear any manual assignment to use the latest classification.
 
-Set `OPENAI_API_KEY` in `server/.env` to enable model-based routing and summaries for sample threads. Without a key, or if the model request fails, the UI labels the result as a rule-based assessment. The model receives simulated sample conversations only. Inbox Q&A and reply drafting are upcoming.
+Set `OPENAI_API_KEY` in `server/.env` to enable model-based routing and summaries for sample threads. Without a key, or if the model request fails, the UI labels the result as a rule-based assessment. The model receives simulated sample conversations only. The same key enables model-based inbox Q&A and reply generation. The demo also supports rule-based inbox matches and reply templates.
+
+## Ask questions and draft a reply
+
+- Use **Ask your inbox** to ask about active conversations. Open a supporting thread directly from the answer.
+- Open a conversation and choose **Generate draft** or write your own. Edit the text, choose **Review draft**, then **Approve and save draft**. The draft stays with the conversation after refresh. Demo mailboxes save drafts in Relay without sending email.

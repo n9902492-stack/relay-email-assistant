@@ -1,3 +1,5 @@
+import { rateLimit } from 'express-rate-limit';
+import { answerInbox, draftReply } from './mailbox-assist.js';
 import { classify, owners } from './classification.js';
 
 const examples = [
@@ -69,6 +71,40 @@ export function registerMailbox(app, db, requireUser) {
     res.set('Cache-Control', 'no-store');
     next();
   }, requireUser);
+
+  const assistLimit = rateLimit({
+    windowMs: 60_000,
+    limit: 15,
+    keyGenerator: req => String(req.user._id),
+    message: { error: 'Too many requests. Try again in a minute.' },
+  });
+
+  app.post('/api/mailbox/ask', assistLimit, async (req, res) => {
+    const question = typeof req.body?.question === 'string' ? req.body.question.trim() : '';
+    if (!question || question.length > 500) return res.status(400).json({ error: 'Enter a question of up to 500 characters.' });
+    const mailbox = await mailboxes.findOne({ _id: req.user._id });
+    if (!mailbox) return res.status(404).json({ error: 'Connect a mailbox first.' });
+    res.json(await answerInbox(question, mailbox.threads));
+  });
+
+  app.post('/api/mailbox/threads/:id/draft', assistLimit, async (req, res) => {
+    const mailbox = await mailboxes.findOne({ _id: req.user._id });
+    const thread = mailbox?.threads.find(item => item.id === req.params.id);
+    if (!thread) return res.status(404).json({ error: 'Conversation not found.' });
+    res.json(await draftReply(thread, req.user.name));
+  });
+
+  app.put('/api/mailbox/threads/:id/draft', async (req, res) => {
+    const body = typeof req.body?.body === 'string' ? req.body.body.trim() : '';
+    if (!body || body.length > 4000) return res.status(400).json({ error: 'Enter a draft of up to 4,000 characters.' });
+    const mailbox = await mailboxes.findOneAndUpdate(
+      { _id: req.user._id, 'threads.id': req.params.id },
+      { $set: { 'threads.$.draft': body } },
+      { returnDocument: 'after' },
+    );
+    if (!mailbox) return res.status(404).json({ error: 'Conversation not found.' });
+    res.json({ draft: body });
+  });
 
   app.get('/api/mailbox', async (req, res) => {
     const mailbox = await mailboxes.findOne({ _id: req.user._id });
