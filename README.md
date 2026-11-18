@@ -14,4 +14,10 @@ Run `npm run build` to type-check and build the client. After building, `npm sta
 
 Create an account and choose Gmail or Outlook. Both options load a sample inbox without accessing an external account. Sync refreshes the connection timestamp while preserving changes to sample threads. Search by sender, subject, or message text. Filter by reply responsibility and try marking a conversation read, important, completed, or archived.
 
-Reply responsibility labels are part of the sample data. Automatic classification, the client handoff view, and AI-assisted summaries and drafting are upcoming.
+## Try reply routing
+
+1. After connecting, open **Revised proposal needs your approval** and inspect the assessment. Existing demo mailboxes can click **Sync sample inbox** to classify earlier threads.
+2. Click **Client preview**, open a conversation, and choose **Ask assistant to take over** or **Mark handled**. In the assistant workspace, find it in **Assistant to Reply** or **Completed** respectively. Client preview is a role simulation within the signed-in demo workspace.
+3. Back in the assistant inbox, click **Simulate proposal follow-up** to add a sample resolution to the proposal thread. Automatic classification runs again. Clear any manual assignment to use the latest classification.
+
+Set `OPENAI_API_KEY` in `server/.env` to enable model-based routing and summaries for sample threads. Without a key, or if the model request fails, the UI labels the result as a rule-based assessment. The model receives simulated sample conversations only. Inbox Q&A and reply drafting are upcoming.

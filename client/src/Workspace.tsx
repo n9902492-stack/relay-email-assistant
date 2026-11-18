@@ -8,7 +8,9 @@ type Thread = {
   sender: string;
   subject: string;
   owner: Owner;
-  messages: { body: string; receivedAt: string }[];
+  override?: Owner | null;
+  classification?: { owner: Owner; reason: string; summary: string; review: boolean; source: 'ai' | 'rules' };
+  messages: { body: string; receivedAt: string; demoFollowUp?: boolean }[];
 } & Record<Flag, boolean>;
 type Mailbox = { provider: Provider; syncedAt: string; threads: Thread[] };
 
@@ -17,7 +19,7 @@ const labels = { ASSISTANT: 'Assistant to Reply', CLIENT: 'Client to Reply', NON
 const segments = [
   ['inbox', 'Inbox'], ['unread', 'Unread'], ['important', 'Important'],
   ['ASSISTANT', labels.ASSISTANT], ['CLIENT', labels.CLIENT], ['NONE', labels.NONE],
-  ['completed', 'Completed'], ['archived', 'Archive'],
+  ['review', 'Needs review'], ['completed', 'Completed'], ['archived', 'Archive'],
 ] as const;
 type Segment = (typeof segments)[number][0];
 const dates = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
@@ -28,6 +30,7 @@ function belongs(thread: Thread, segment: Segment) {
   if (segment === 'completed') return thread.completed;
   if (segment === 'inbox') return true;
   if (segment === 'important' || segment === 'unread') return thread[segment];
+  if (segment === 'review') return !thread.completed && !thread.override && Boolean(thread.classification?.review);
   return !thread.completed && thread.owner === segment;
 }
 
@@ -53,6 +56,8 @@ export function Workspace({ name, signOut, signingOut, signOutError }: {
   const [segment, setSegment] = useState<Segment>('inbox');
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState('');
+  const [view, setView] = useState<'assistant' | 'client'>('assistant');
+  const [notice, setNotice] = useState('');
   const thread = mailbox?.threads.find(item => item.id === selected);
 
   useEffect(() => {
@@ -75,6 +80,10 @@ export function Workspace({ name, signOut, signingOut, signOutError }: {
     try {
       const result = await mailboxRequest(path, path.startsWith('/threads/') ? 'PATCH' : 'POST', body);
       setMailbox(result);
+      if (label === 'takeover' || label === 'handled') {
+        setSelected('');
+        setNotice(label === 'takeover' ? 'Moved to the assistant’s reply queue.' : 'Conversation marked as handled.');
+      }
     } catch (failure) {
       setError(failure instanceof Error && !(failure instanceof SyntaxError) && !(failure instanceof TypeError)
         ? failure.message : 'Could not reach Relay. Try again.');
@@ -90,6 +99,16 @@ export function Workspace({ name, signOut, signingOut, signOutError }: {
     || item.messages.some(message => message.body.toLowerCase().includes(search))
   ));
   const disabled = Boolean(action) || signingOut;
+  const clientThreads = threads.filter(item => belongs(item, 'CLIENT'));
+  const clientThread = clientThreads.find(item => item.id === selected);
+  const demoFollowUpReceived = threads.some(item => item.messages.some(message => message.demoFollowUp));
+
+  function switchView(next: 'assistant' | 'client') {
+    setSelected('');
+    setNotice('');
+    setError('');
+    setView(next);
+  }
 
   return (
     <main className="workspace">
@@ -97,6 +116,10 @@ export function Workspace({ name, signOut, signingOut, signOutError }: {
         <div className="brand"><span className="brand-icon" aria-hidden="true">↗</span>Relay</div>
         <div className="workspace-user"><span>{name}</span><button className="text-button" disabled={disabled} onClick={signOut}>{signingOut ? 'Signing out…' : 'Sign out'}</button></div>
       </header>
+      {mailbox && <nav className="view-switch" aria-label="Demo workspace view">
+        <button className="secondary" aria-pressed={view === 'assistant'} disabled={disabled} onClick={() => switchView('assistant')}>Assistant workspace</button>
+        <button className="secondary" aria-pressed={view === 'client'} disabled={disabled} onClick={() => switchView('client')}>Client preview</button>
+      </nav>}
       {(signOutError || error) && <p className="workspace-error error" role="alert">{signOutError || error}</p>}
       {loading ? <p className="workspace-status" role="status">Loading mailbox…</p> : !loaded ? (
         <button className="workspace-status text-button" onClick={() => { setLoading(true); setError(''); setAttempt(attempt + 1); }}>Try again</button>
@@ -115,6 +138,33 @@ export function Workspace({ name, signOut, signingOut, signOutError }: {
             ))}
           </div>
         </section>
+      ) : view === 'client' ? (
+        <section className="client-view">
+          <p className="workspace-kicker">Client preview</p>
+          <h1>Needs your attention.</h1>
+          <p className="intro">Review conversations that need your personal input.</p>
+          {notice && <p className="handoff-notice" role="status">{notice}</p>}
+          {clientThreads.length === 0 && <p className="empty">You’re all caught up.</p>}
+          {clientThreads.map(item => (
+            <article className="client-card" key={item.id}>
+              <div className="client-meta"><strong>{item.sender}</strong><time dateTime={item.messages.at(-1)?.receivedAt}>{dates.format(new Date(item.messages.at(-1)!.receivedAt))}</time></div>
+              <h2>{item.subject}</h2>
+              {item.classification && <p>{item.classification.summary}</p>}
+              <p className="client-reason">{item.override ? 'The assistant assigned this conversation to you.' : item.classification?.reason}</p>
+              <div className="thread-actions">
+                <button className="secondary" aria-expanded={clientThread?.id === item.id} onClick={() => setSelected(clientThread?.id === item.id ? '' : item.id)}>{clientThread?.id === item.id ? 'Hide conversation' : 'Open conversation'}</button>
+                <button className="secondary" disabled={disabled} onClick={() => update('/threads/' + item.id + '/routing', 'handled', { action: 'handled' })}>Mark handled</button>
+                <button className="secondary" disabled={disabled} onClick={() => update('/threads/' + item.id + '/routing', 'takeover', { action: 'takeover' })}>Ask assistant to take over</button>
+              </div>
+              {clientThread?.id === item.id && item.messages.map(message => (
+                <article className="thread-message" key={message.receivedAt}>
+                  <header><strong>{item.sender}</strong><time dateTime={message.receivedAt}>{dates.format(new Date(message.receivedAt))}</time></header>
+                  <p>{message.body}</p>
+                </article>
+              ))}
+            </article>
+          ))}
+        </section>
       ) : (
         <section className="inbox">
           <header className="inbox-top">
@@ -123,6 +173,7 @@ export function Workspace({ name, signOut, signingOut, signOutError }: {
               <strong>{providers[mailbox.provider]} demo connected</strong>
               <span role="status">Last synced {dates.format(new Date(mailbox.syncedAt))}</span>
               <button className="secondary" disabled={disabled} onClick={() => update('/sync', 'sync')}>{action === 'sync' ? 'Syncing…' : 'Sync sample inbox'}</button>
+              {!demoFollowUpReceived && <button className="secondary" disabled={disabled} onClick={() => update('/demo-follow-up', 'followup')}>{action === 'followup' ? 'Classifying…' : 'Simulate proposal follow-up'}</button>}
             </div>
           </header>
           <div className="inbox-stats">
@@ -143,6 +194,7 @@ export function Workspace({ name, signOut, signingOut, signOutError }: {
                   <span>{item.sender}{item.unread && <span className="unread-dot" aria-label="Unread" />}</span>
                   <strong>{item.subject}</strong>
                   <span className={'thread-owner ' + item.owner.toLowerCase()}>{labels[item.owner]}</span>
+                  {!item.override && item.classification?.review && <span className="review-label">Needs review</span>}
                 </button>
               )) : <p className="empty">No conversations match this view.</p>}
             </section>
@@ -152,6 +204,22 @@ export function Workspace({ name, signOut, signingOut, signOutError }: {
                 <p className="workspace-kicker">Sample conversation</p>
                 <h2>{thread.subject}</h2>
                 <p className={'thread-owner ' + thread.owner.toLowerCase()}>{labels[thread.owner]}</p>
+                <section className="routing">
+                  {thread.classification && <>
+                    <strong>{thread.classification.source === 'ai' ? 'AI assessment' : 'Rule-based assessment'}</strong>
+                    <p>{thread.classification.summary}</p>
+                    <p>{labels[thread.classification.owner]} · {thread.classification.reason}</p>
+                    {thread.classification.review && <p className="review-label">Needs review</p>}
+                  </>}
+                  <label>Reply responsibility
+                    <select value={thread.override ?? ''} disabled={disabled} onChange={event => update('/threads/' + thread.id + '/routing', 'override', { action: 'override', owner: event.target.value || null })}>
+                      <option value="">Use automatic classification</option>
+                      <option value="ASSISTANT">{labels.ASSISTANT}</option>
+                      <option value="CLIENT">{labels.CLIENT}</option>
+                      <option value="NONE">{labels.NONE}</option>
+                    </select>
+                  </label>
+                </section>
                 <div className="thread-actions">
                   {([
                     ['important', thread.important ? 'Remove importance' : 'Mark important'],

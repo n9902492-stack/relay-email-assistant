@@ -1,3 +1,5 @@
+import { classify, owners } from './classification.js';
+
 const examples = [
   ['proposal', 'Jamie Davis', 'Revised proposal needs your approval', 'CLIENT', true, true, [
     'I updated the scope after our call. The new estimate is £4,800 and includes two revision rounds.',
@@ -32,6 +34,37 @@ function seedThreads(now) {
 
 export function registerMailbox(app, db, requireUser) {
   const mailboxes = db.collection('mailboxes');
+
+  async function classifyPending(mailbox) {
+    const threads = mailbox.threads.filter(thread => thread.classification?.messageCount !== thread.messages.length
+      || (process.env.OPENAI_API_KEY && thread.classification?.source === 'rules'));
+    if (!threads.length) return mailbox;
+    await Promise.all(threads.map(async thread => {
+      const classification = await classify(thread);
+      await mailboxes.updateOne(
+        { _id: mailbox._id, threads: { $elemMatch: {
+          id: thread.id,
+          messages: { $size: thread.messages.length },
+          ...(classification.source === 'rules' && { $or: [
+            { 'classification.source': { $ne: 'ai' } },
+            { 'classification.messageCount': { $ne: thread.messages.length } },
+          ] }),
+        } } },
+        { $set: { 'threads.$.classification': { ...classification, messageCount: thread.messages.length } } },
+      );
+    }));
+    return mailboxes.findOne({ _id: mailbox._id });
+  }
+
+  function sendMailbox(res, mailbox) {
+    res.json({ mailbox: mailbox && {
+      ...mailbox,
+      threads: mailbox.threads.map(thread => ({
+        ...thread,
+        owner: thread.override ?? thread.classification?.owner ?? thread.owner,
+      })),
+    } });
+  }
   app.use('/api/mailbox', (_req, res, next) => {
     res.set('Cache-Control', 'no-store');
     next();
@@ -39,7 +72,7 @@ export function registerMailbox(app, db, requireUser) {
 
   app.get('/api/mailbox', async (req, res) => {
     const mailbox = await mailboxes.findOne({ _id: req.user._id });
-    res.json({ mailbox });
+    sendMailbox(res, mailbox);
   });
 
   app.post('/api/mailbox/connect', async (req, res) => {
@@ -57,7 +90,7 @@ export function registerMailbox(app, db, requireUser) {
       },
       { upsert: true, returnDocument: 'after' },
     );
-    res.json({ mailbox });
+    sendMailbox(res, await classifyPending(mailbox));
   });
 
   app.post('/api/mailbox/sync', async (req, res) => {
@@ -67,7 +100,44 @@ export function registerMailbox(app, db, requireUser) {
       { returnDocument: 'after' },
     );
     if (!mailbox) return res.status(404).json({ error: 'Connect a mailbox first.' });
-    res.json({ mailbox });
+    sendMailbox(res, await classifyPending(mailbox));
+  });
+
+  app.post('/api/mailbox/demo-follow-up', async (req, res) => {
+    await mailboxes.updateOne(
+      { _id: req.user._id, threads: { $elemMatch: { id: 'proposal', 'messages.demoFollowUp': { $ne: true } } } },
+      {
+        $push: { 'threads.$.messages': {
+          body: 'The director already approved the scope. No reply needed. Thanks for coordinating!',
+          receivedAt: new Date(), demoFollowUp: true,
+        } },
+        $set: { 'threads.$.unread': true },
+      },
+    );
+    const mailbox = await mailboxes.findOne({ _id: req.user._id });
+    if (!mailbox) return res.status(404).json({ error: 'Connect a mailbox first.' });
+    sendMailbox(res, await classifyPending(mailbox));
+  });
+
+  app.patch('/api/mailbox/threads/:id/routing', async (req, res) => {
+    const { action, owner } = req.body ?? {};
+    let change;
+    if (action === 'override' && (owner === null || owners.includes(owner))) {
+      change = { 'threads.$.override': owner };
+    } else if (action === 'takeover') {
+      change = { 'threads.$.override': 'ASSISTANT' };
+    } else if (action === 'handled') {
+      change = { 'threads.$.completed': true };
+    } else {
+      return res.status(400).json({ error: 'Choose a valid routing action.' });
+    }
+    const mailbox = await mailboxes.findOneAndUpdate(
+      { _id: req.user._id, 'threads.id': req.params.id },
+      { $set: change },
+      { returnDocument: 'after' },
+    );
+    if (!mailbox) return res.status(404).json({ error: 'Conversation not found.' });
+    sendMailbox(res, mailbox);
   });
 
   app.patch('/api/mailbox/threads/:id', async (req, res) => {
@@ -81,6 +151,6 @@ export function registerMailbox(app, db, requireUser) {
       { returnDocument: 'after' },
     );
     if (!mailbox) return res.status(404).json({ error: 'Conversation not found.' });
-    res.json({ mailbox });
+    sendMailbox(res, mailbox);
   });
 }

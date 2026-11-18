@@ -105,3 +105,17 @@ label input { margin-top: 7px; }
   .inbox-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (prefers-reduced-motion: reduce) { .connect { animation: none; } }
+
+.view-switch { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.view-switch button[aria-pressed=true] { background: #e7efd9; border-color: #8ea374; font-weight: 650; }
+.routing { margin-top: 14px; padding: 14px; display: grid; gap: 7px; border: 1px solid #dce5ce; border-radius: 10px; background: #f5f8ee; font-size: 14px; }
+.routing p { color: #474f40; }
+.routing label { margin-top: 5px; }
+.routing select { display: block; width: 100%; margin-top: 5px; padding: 7px 9px; background: #fffefa; border: 1px solid #c9cbbd; border-radius: 7px; }
+.review-label { color: #794b10; font-size: 12px; font-weight: 680; }
+.client-view { max-width: 720px; margin: 42px auto; }
+.client-card { padding: clamp(14px, 3vw, 24px); margin-bottom: 12px; border: 1px solid #dcddd1; border-radius: 13px; background: #fffefa; }
+.client-card h2 { font-size: clamp(27px, 4vw, 38px); margin: 10px 0; }
+.client-meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; font-size: 13px; color: #53594b; }
+.client-reason { margin-top: 9px; color: #52683b; font-size: 14px; }
+.handoff-notice { padding: 10px 12px; margin-bottom: 12px; border-radius: 8px; background: #e7efd9; }
