@@ -26,3 +26,12 @@ Set `OPENAI_API_KEY` in `server/.env` to enable model-based routing and summarie
 
 - Use **Ask your inbox** to ask about active conversations. Open a supporting thread directly from the answer.
 - Open a conversation and choose **Generate draft** or write your own. Edit the text, choose **Review draft**, then **Approve and save draft**. The draft stays with the conversation after refresh. Demo mailboxes save drafts in Relay without sending email.
+
+## Deploy on Render
+
+The repository includes a Render Blueprint (`render.yaml`) for a single Node web service. Express serves the built React app and API together. The service checks MongoDB connectivity at `/api/health`.
+
+1. In the [Render dashboard](https://dashboard.render.com/), create a **Blueprint** from this repository.
+2. Supply `MONGODB_URI` using a MongoDB deployment reachable from Render. For Atlas, configure the database user's permissions and allow the web service's outbound addresses in Atlas before deploying.
+3. Optionally set `OPENAI_API_KEY` in the service environment to enable model-based features. Without it, the demo uses rules and templates.
+4. Open the assigned HTTPS URL. Confirm `/api/health` returns `{"status":"ok"}`, then sign up with test credentials and connect a demo mailbox.

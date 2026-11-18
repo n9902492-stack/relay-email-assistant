@@ -9,6 +9,9 @@ import { registerMailbox } from './mailbox.js';
 
 const deriveKey = promisify(scrypt);
 const app = express();
+if (process.env.NODE_ENV === 'production' && !process.env.MONGODB_URI) {
+  throw new Error('MONGODB_URI is required in production.');
+}
 const db = new MongoClient(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017')
   .db(process.env.MONGODB_DB || 'relay');
 const users = db.collection('users');
@@ -20,7 +23,7 @@ await Promise.all([
 ]);
 
 app.disable('x-powered-by');
-app.use(express.json({ limit: '8kb' }));
+app.use(express.json({ limit: '32kb' }));
 app.use('/api/auth', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();
@@ -96,12 +99,23 @@ app.post('/api/auth/signout', async (req, res) => {
   res.clearCookie('relay_session', cookie).sendStatus(204);
 });
 
+app.get('/api/health', async (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    await db.command({ ping: 1 }, { timeoutMS: 2000 });
+    res.json({ status: 'ok' });
+  } catch {
+    res.status(503).json({ status: 'unavailable' });
+  }
+});
+
 registerMailbox(app, db, requireUser);
 
 app.use('/api', (_req, res) => res.status(404).json({ error: 'Endpoint not found.' }));
 const clientDist = fileURLToPath(new URL('../../client/dist', import.meta.url));
 if (existsSync(clientDist)) app.use(express.static(clientDist));
 app.use((error, _req, res, _next) => {
+  if (error.status === 413) return res.status(413).json({ error: 'Request body is too large.' });
   if (error.status === 400) return res.status(400).json({ error: 'Invalid request.' });
   console.error(error);
   res.status(500).json({ error: 'Something went wrong. Try again.' });
