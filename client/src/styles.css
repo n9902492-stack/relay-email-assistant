@@ -52,3 +52,56 @@ label input { margin-top: 7px; }
 @media (prefers-reduced-motion: reduce) {
   .form-panel, .message { animation: none; }
 }
+
+.workspace { min-height: 100svh; max-width: 1440px; margin: auto; padding: 0 clamp(16px, 4vw, 56px) 40px; }
+.workspace-header { display: flex; justify-content: space-between; align-items: center; min-height: 76px; border-bottom: 1px solid #dcddd1; gap: 12px; }
+.workspace-header .brand { position: static; }
+.workspace-user { display: flex; gap: 14px; align-items: center; font-size: 14px; }
+.workspace-user > span { overflow-wrap: anywhere; }
+.workspace-status, .workspace-error { margin: 24px 0; }
+.workspace-kicker { color: #52683b; font-size: 13px; font-weight: 680; margin-bottom: 10px; }
+.connect { max-width: 680px; margin: clamp(54px, 13vh, 145px) auto; animation: enter 350ms ease both; }
+.connect .intro { max-width: 480px; }
+.provider-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.provider-card { display: grid; justify-items: start; gap: 10px; padding: 20px; text-align: left; background: #fffefa; border: 1px solid #d5d7cb; border-radius: 14px; }
+.provider-card:hover { border-color: #647d49; }
+.provider-card > span:last-child { font-size: 13px; color: #52683b; }
+.provider-icon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 9px; font-weight: 750; }
+.provider-icon.gmail { background: #fceae4; color: #9a382a; }
+.provider-icon.outlook { background: #e3edfb; color: #285681; }
+.inbox { margin-top: 32px; }
+.inbox-top { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 24px; }
+.sync { display: grid; justify-items: end; gap: 5px; font-size: 13px; color: #53594b; }
+.secondary { border: 1px solid #c9cbbd; border-radius: 7px; padding: 6px 10px; background: #fffefa; color: #25351b; font-size: 13px; }
+.secondary:hover { border-color: #637d39; }
+.inbox-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+.inbox-stats button { display: grid; text-align: left; gap: 4px; padding: 12px; background: #fffefa; border: 1px solid #d5d7cb; border-radius: 10px; font-size: 13px; }
+.inbox-stats button[aria-pressed=true] { background: #e7efd9; border-color: #8ea374; }
+.inbox-stats strong { font-size: 23px; }
+.inbox-body { display: grid; grid-template-columns: minmax(285px, .85fr) minmax(0, 1.15fr); border: 1px solid #dcddd1; border-radius: 13px; background: #fffefa; }
+.thread-list, .thread-detail { padding: clamp(12px, 2.4vw, 24px); min-width: 0; }
+.thread-list { border-right: 1px solid #dcddd1; }
+.segments, .thread-actions { display: flex; gap: 6px; flex-wrap: wrap; margin: 14px 0; }
+.segments button { border-radius: 6px; padding: 5px 8px; background: #f1f1e8; font-size: 12px; }
+.segments button[aria-pressed=true] { color: #fff; background: #29391e; }
+.thread-row { display: grid; width: 100%; text-align: left; gap: 6px; padding: 13px 10px; border-top: 1px solid #e5e5da; }
+.thread-row:hover, .thread-row[aria-pressed=true] { background: #f2f5eb; }
+.thread-row > span:first-child, .thread-message time { font-size: 13px; color: #53594b; }
+.unread-dot { display: inline-block; width: 7px; height: 7px; margin-left: 8px; border-radius: 50%; background: #4e6630; }
+.thread-owner { width: fit-content; font-size: 11px; font-weight: 680; border-radius: 5px; padding: 4px 7px; }
+.thread-owner.client { background: #e7dbff; }
+.thread-owner.assistant { background: #d7efa9; }
+.thread-owner.none { background: #f0e0be; }
+.thread-detail h2 { font-size: clamp(30px, 4vw, 48px); margin-bottom: 12px; overflow-wrap: anywhere; }
+.thread-message { border-top: 1px solid #dcddd1; padding: 16px 0; }
+.thread-message header { display: flex; flex-wrap: wrap; gap: 6px 12px; justify-content: space-between; margin-bottom: 7px; }
+.empty { color: #53594b; padding: 14px 0; }
+.back { display: none; margin-bottom: 16px; }
+@media (max-width: 760px) {
+  .inbox-body { grid-template-columns: 1fr; }
+  .thread-list { border-right: 0; }
+  .thread-detail, .has-selection .thread-list { display: none; }
+  .has-selection .thread-detail, .back { display: block; }
+  .inbox-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) { .connect { animation: none; } }

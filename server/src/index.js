@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { MongoClient } from 'mongodb';
+import { registerMailbox } from './mailbox.js';
 
 const deriveKey = promisify(scrypt);
 const app = express();
@@ -78,19 +79,24 @@ app.post('/api/auth/signin', authLimit, async (req, res) => {
   await signIn(req, res, user, 200);
 });
 
-app.get('/api/auth/me', async (req, res) => {
+async function requireUser(req, res, next) {
   const id = sessionId(req);
   const session = id && await sessions.findOne({ _id: id, expiresAt: { $gt: new Date() } });
   const user = session && await users.findOne({ _id: session.userId });
   if (!user) return res.status(401).json({ error: 'Please sign in.' });
-  res.json({ user: profile(user) });
-});
+  req.user = user;
+  next();
+}
+
+app.get('/api/auth/me', requireUser, (req, res) => res.json({ user: profile(req.user) }));
 
 app.post('/api/auth/signout', async (req, res) => {
   const id = sessionId(req);
   if (id) await sessions.deleteOne({ _id: id });
   res.clearCookie('relay_session', cookie).sendStatus(204);
 });
+
+registerMailbox(app, db, requireUser);
 
 app.use('/api', (_req, res) => res.status(404).json({ error: 'Endpoint not found.' }));
 const clientDist = fileURLToPath(new URL('../../client/dist', import.meta.url));

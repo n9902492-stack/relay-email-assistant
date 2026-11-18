@@ -1,6 +1,6 @@
 # Relay Email Assistant
 
-Relay is a MERN prototype for personal assistants managing client email. This first milestone covers the animated entry screens, MongoDB-backed sign-up and sign-in, session restoration and sign-out. The entry screen includes an illustrative inbox triage preview.
+Relay is a MERN prototype for personal assistants managing client email. The prototype includes animated entry screens, MongoDB-backed accounts, persistent sessions, and an assistant inbox backed by demo mailboxes.
 
 ## Run locally
 
@@ -10,6 +10,8 @@ Relay is a MERN prototype for personal assistants managing client email. This fi
 
 Run `npm run build` to type-check and build the client. After building, `npm start` serves the API and client together. Use HTTPS with `NODE_ENV=production`.
 
-## Next milestone
+## Try the demo
 
-Add mailbox onboarding and sync, the assistant inbox, automatic reply classification, the client handoff flow and AI-assisted drafting.
+Create an account and choose Gmail or Outlook. Both options load a sample inbox without accessing an external account. Sync refreshes the connection timestamp while preserving changes to sample threads. Search by sender, subject, or message text. Filter by reply responsibility and try marking a conversation read, important, completed, or archived.
+
+Reply responsibility labels are part of the sample data. Automatic classification, the client handoff view, and AI-assisted summaries and drafting are upcoming.

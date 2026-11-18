@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
+import { Workspace } from './Workspace';
 
 type User = { name: string; email: string };
 type Mode = 'signin' | 'signup';
@@ -93,18 +94,13 @@ function App() {
     setMode(signup ? 'signin' : 'signup');
   }
 
+  if (user) return <Workspace name={user.name} signOut={signOut} signingOut={pending} signOutError={error} />;
+
   return (
     <main className="shell">
       <section className="entry">
         <div className="brand"><span className="brand-icon" aria-hidden="true">↗</span>Relay</div>
-        {loading ? <p className="form-panel" role="status">Loading Relay…</p> : user ? (
-          <div className="form-panel">
-            <h1>Welcome, {user.name}.</h1>
-            <p className="intro">Signed in as {user.email}.</p>
-            {error && <p className="error" role="alert">{error}</p>}
-            <button type="button" className="primary" disabled={pending} onClick={signOut}>Sign out</button>
-          </div>
-        ) : (
+        {loading ? <p className="form-panel" role="status">Loading Relay…</p> : (
           <div className="form-panel" key={mode}>
             <h1>{signup ? 'Make room for focus.' : 'Back to your inbox.'}</h1>
             <p className="intro">{signup ? 'Create an account to start managing client email.' : 'Sign in to manage your clients’ conversations.'}</p>
